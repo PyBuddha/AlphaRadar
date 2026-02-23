@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "paths": {
+      "@alpharadar/engine": [
+        "packages/engine/src/index.ts"
+      ],
+      "@alpharadar/collector": [
+        "packages/collector/src/index.ts"
+      ]
+    },
+    "declaration": true,
+    "sourceMap": true
+  }
+}
