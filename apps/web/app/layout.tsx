@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Alpha Radar",
-  description: "Momentum radar dashboard"
+  title: "알파 레이더",
+  description: "모멘텀 레이더 대시보드"
 };
 
 export default function RootLayout({
@@ -17,4 +17,3 @@ export default function RootLayout({
     </html>
   );
 }
-

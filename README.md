@@ -34,3 +34,13 @@ Example endpoints:
 
 - `http://localhost:4001/health`
 - `http://localhost:4001/api/radar`
+
+## Kiwoom Integration Status
+
+- `packages/collector` supports mock mode end-to-end
+- Live/paper mode now supports OAuth token issuance (REST/WS business endpoints still in progress)
+- Smoke test after setting envs (`KIWOOM_APP_KEY`, `KIWOOM_APP_SECRET`, optional `KIWOOM_MODE=paper|live`):
+
+```bash
+npm run smoke:auth -w @alpharadar/collector
+```
