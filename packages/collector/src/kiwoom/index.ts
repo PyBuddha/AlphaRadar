@@ -148,12 +148,13 @@ export function createKiwoomCollector(config: CollectorConfig): KiwoomCollector 
 
     const token = await auth.issueToken();
     kiwoomConfig.credentials.accessToken = token.accessToken;
+    await ws.connect();
 
     return {
       ok: true,
       provider: "kiwoom",
       mode: config.mode,
-      message: "Kiwoom auth connected (REST auth live, WS implementation pending)"
+      message: "Kiwoom auth connected (ranking REST and WS connected)"
     };
   }
 
@@ -174,16 +175,10 @@ export function createKiwoomCollector(config: CollectorConfig): KiwoomCollector 
     disconnect,
     async subscribeTrades(symbols: string[]) {
       if (symbols.length === 0) return;
-      if (config.mode !== "mock") {
-        throw new Error("Live Kiwoom WS subscribe not implemented yet");
-      }
       await ws.subscribe({ channel: "trade", symbols });
     },
     async subscribeQuotes(symbols: string[]) {
       if (symbols.length === 0) return;
-      if (config.mode !== "mock") {
-        throw new Error("Live Kiwoom WS subscribe not implemented yet");
-      }
       await ws.subscribe({ channel: "quote", symbols });
     },
     onEvent(handler: CollectorEventHandler) {

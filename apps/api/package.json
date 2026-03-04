@@ -9,6 +9,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@alpharadar/collector": "0.1.0",
     "@alpharadar/engine": "0.1.0"
   },
   "devDependencies": {

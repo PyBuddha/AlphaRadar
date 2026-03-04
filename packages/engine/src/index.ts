@@ -1,12 +1,12 @@
 export type RadarTag =
-  | "SURGE_VOL"
-  | "SURGE_PRICE"
+  | "SURGE_30S"
+  | "SURGE_1M"
   | "BREAKOUT"
-  | "PULLBACK"
-  | "ABSORB"
-  | "THIN_ASK"
-  | "THEME_SYNC"
-  | "RISK_SPIKE";
+  | "TRADEABLE"
+  | "OVEREXT"
+  | "REVERSAL_RISK";
+
+export type MarketState = "CHOP" | "TREND_UP" | "TREND_DOWN" | "HIGH_VOL";
 
 export type EngineInputSnapshot = {
   symbol: string;
@@ -50,54 +50,95 @@ function normalizeRatio(value: number, threshold: number, cap: number): number {
   return clamp01(scaled);
 }
 
-function scoreMomentum(input: EngineInputSnapshot): number {
-  const ret1m = normalizeRatio(input.ret1m, 0.005, 0.05);
-  const ret3m = normalizeRatio(input.ret3m, 0.01, 0.08);
-  const accel = normalizeRatio(input.turnoverAccel, 1.05, 2.5);
-  return Math.round((ret1m * 0.45 + ret3m * 0.35 + accel * 0.2) * 40);
+function clamp(value: number, min: number, max: number): number {
+  if (value < min) return min;
+  if (value > max) return max;
+  return value;
 }
 
-function scoreLiquidity(input: EngineInputSnapshot): number {
-  const t1 = normalizeRatio(input.turnover1m, 300_000_000, 5_000_000_000);
-  const t3 = normalizeRatio(input.turnover3m, 900_000_000, 15_000_000_000);
-  const spreadPenalty = input.spreadBps ? clamp01((input.spreadBps - 20) / 50) : 0;
-  const raw = t1 * 0.6 + t3 * 0.4;
-  return Math.round(clamp01(raw - spreadPenalty * 0.3) * 25);
+function estimateRet30s(input: EngineInputSnapshot): number {
+  const intensity = input.tradeIntensity ?? 1;
+  const weight = clamp(0.45 + (intensity - 0.8) * 0.33, 0.35, 0.9);
+  return input.ret1m * weight;
 }
 
-function scoreBreakout(input: EngineInputSnapshot): number {
+function overextSignal(input: EngineInputSnapshot): number {
+  const byReturn = normalizeRatio(input.ret1m, 0.04, 0.12);
+  const byVol = normalizeRatio(input.atrLike, 0.045, 0.12);
+  return Math.max(byReturn, byVol);
+}
+
+function reversalSignal(input: EngineInputSnapshot): number {
+  const downMove = normalizeRatio(-input.ret1m, 0.003, 0.03);
+  const weakTape = normalizeRatio(1 - (input.tradeIntensity ?? 1), 0.05, 0.55);
+  const noisy = normalizeRatio(input.atrLike, 0.03, 0.1);
+  return clamp01(downMove * 0.55 + weakTape * 0.25 + noisy * 0.2);
+}
+
+function tradeableSignal(input: EngineInputSnapshot): number {
+  const turnover = normalizeRatio(input.turnover1m, 400_000_000, 8_000_000_000);
+  const accel = normalizeRatio(input.turnoverAccel, 1.0, 2.5);
+  const intensity = normalizeRatio(input.tradeIntensity ?? 1, 0.9, 2.0);
+  const spreadPenalty = input.spreadBps ? normalizeRatio(input.spreadBps, 18, 60) : 0;
+  return clamp01(turnover * 0.6 + accel * 0.2 + intensity * 0.2 - spreadPenalty * 0.35);
+}
+
+function scoreSurge(input: EngineInputSnapshot): number {
+  const ret30s = normalizeRatio(estimateRet30s(input), 0.004, 0.04);
+  const ret1m = normalizeRatio(input.ret1m, 0.007, 0.06);
+  const accel = normalizeRatio(input.turnoverAccel, 1.08, 2.8);
   const breakout = input.breakPrevHigh ? 1 : 0;
-  const volatilityPenalty = clamp01((input.atrLike - 0.06) / 0.12);
-  return Math.round(clamp01(breakout - volatilityPenalty * 0.35) * 20);
+  return Math.round(clamp01(ret30s * 0.35 + ret1m * 0.35 + accel * 0.2 + breakout * 0.1) * 60);
+}
+
+function scoreTradeable(input: EngineInputSnapshot): number {
+  return Math.round(tradeableSignal(input) * 25);
+}
+
+function scoreRiskPenalty(input: EngineInputSnapshot): number {
+  const risk = clamp01(overextSignal(input) * 0.55 + reversalSignal(input) * 0.45);
+  return Math.round(risk * 15);
 }
 
 export function deriveTags(input: EngineInputSnapshot): RadarTag[] {
   const tags: RadarTag[] = [];
+  const ret30s = estimateRet30s(input);
+  const tradeable = tradeableSignal(input);
+  const overext = overextSignal(input);
+  const reversal = reversalSignal(input);
 
-  if (input.turnoverAccel >= 1.25 || input.turnover1m >= 1_000_000_000) {
-    tags.push("SURGE_VOL");
+  if (ret30s >= 0.004) {
+    tags.push("SURGE_30S");
   }
 
-  if (input.ret1m >= 0.015 || input.ret3m >= 0.03) {
-    tags.push("SURGE_PRICE");
+  if (input.ret1m >= 0.007) {
+    tags.push("SURGE_1M");
   }
 
   if (input.breakPrevHigh) {
     tags.push("BREAKOUT");
   }
 
-  if ((input.spreadBps ?? 0) >= 45 || input.atrLike >= 0.08) {
-    tags.push("RISK_SPIKE");
+  if (tradeable >= 0.5) {
+    tags.push("TRADEABLE");
+  }
+
+  if (overext >= 0.55) {
+    tags.push("OVEREXT");
+  }
+
+  if (reversal >= 0.5) {
+    tags.push("REVERSAL_RISK");
   }
 
   return tags;
 }
 
 export function scoreSymbol(input: EngineInputSnapshot): number {
-  const s1 = scoreMomentum(input);
-  const s2 = scoreLiquidity(input);
-  const s3 = scoreBreakout(input);
-  return Math.max(0, Math.min(100, s1 + s2 + s3));
+  const surge = scoreSurge(input);
+  const tradeable = scoreTradeable(input);
+  const riskPenalty = scoreRiskPenalty(input);
+  return Math.max(0, Math.min(100, surge + tradeable - riskPenalty));
 }
 
 export function buildRadarRow(input: EngineInputSnapshot): RadarRow {
@@ -117,3 +158,42 @@ export function buildRadarRow(input: EngineInputSnapshot): RadarRow {
   };
 }
 
+function mean(values: number[]): number {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function stdDev(values: number[]): number {
+  if (values.length < 2) return 0;
+  const avg = mean(values);
+  const variance = values.reduce((sum, value) => {
+    const diff = value - avg;
+    return sum + diff * diff;
+  }, 0) / values.length;
+  return Math.sqrt(variance);
+}
+
+export function deriveMarketState(inputs: Pick<EngineInputSnapshot, "ret1m">[]): MarketState {
+  if (inputs.length === 0) return "CHOP";
+
+  const returns = inputs.map((input) => input.ret1m);
+  const avgReturn = mean(returns);
+  const volatility = stdDev(returns);
+  const advancers = returns.filter((value) => value > 0).length;
+  const decliners = returns.filter((value) => value < 0).length;
+  const breadth = (advancers - decliners) / returns.length;
+
+  if (volatility >= 0.02 && Math.abs(breadth) < 0.35) {
+    return "HIGH_VOL";
+  }
+
+  if (avgReturn >= 0.004 && breadth >= 0.2) {
+    return "TREND_UP";
+  }
+
+  if (avgReturn <= -0.004 && breadth <= -0.2) {
+    return "TREND_DOWN";
+  }
+
+  return "CHOP";
+}

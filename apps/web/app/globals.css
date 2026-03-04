@@ -84,6 +84,17 @@ a {
   max-width: 72ch;
 }
 
+.data-warning {
+  margin: 10px 0 0;
+  border: 1px solid rgba(255, 128, 105, 0.45);
+  border-radius: 10px;
+  background: rgba(150, 39, 47, 0.2);
+  padding: 8px 10px;
+  color: #ffb2a3;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .pill-row {
   display: flex;
   flex-wrap: wrap;
@@ -472,6 +483,157 @@ a {
   font-size: 13px;
 }
 
+.todo-list .check-ok {
+  color: #7adfb8;
+}
+
+.todo-list .check-no {
+  color: #ff9a87;
+}
+
+.trade-tools-shell {
+  padding: 14px;
+}
+
+.trade-tools-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.trade-panel {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(8, 12, 19, 0.45);
+  padding: 12px;
+}
+
+.trade-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.trade-form-row {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.trade-form-row label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.trade-form-row input,
+.trade-form-row select,
+.trade-form-row textarea {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(7, 10, 15, 0.7);
+  color: var(--text);
+  padding: 8px;
+  font-size: 13px;
+}
+
+.journal-form button {
+  border: 1px solid rgba(85, 214, 190, 0.45);
+  border-radius: 10px;
+  background: rgba(85, 214, 190, 0.14);
+  color: #d9f8f0;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.journal-form button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.trade-error {
+  margin: 0 0 8px;
+  color: #ff9a87;
+  font-size: 12px;
+}
+
+.replay-list,
+.journal-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.replay-item,
+.journal-item {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(6, 9, 14, 0.58);
+  padding: 8px;
+  display: grid;
+  gap: 2px;
+}
+
+.replay-item span,
+.journal-item span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.replay-item strong,
+.journal-item strong {
+  font-size: 14px;
+}
+
+.replay-item small,
+.journal-item small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.replay-empty {
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.hot-toast-stack {
+  position: fixed;
+  right: 14px;
+  top: 12px;
+  z-index: 999;
+  display: grid;
+  gap: 6px;
+  max-width: min(460px, calc(100vw - 28px));
+}
+
+.hot-toast {
+  border: 1px solid rgba(255, 128, 105, 0.55);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(150, 39, 47, 0.95), rgba(100, 26, 33, 0.95));
+  color: #ffe6e2;
+  padding: 10px 12px;
+  font-size: 12px;
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.32);
+  animation: toast-enter 0.16s ease-out;
+}
+
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 1280px) {
   .hero {
     grid-template-columns: 1fr;
@@ -491,6 +653,10 @@ a {
 
   .panel-span-2 {
     grid-column: auto;
+  }
+
+  .trade-tools-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -530,5 +696,9 @@ a {
   .tile.span-3 {
     grid-column: span 12;
     min-height: 82px;
+  }
+
+  .trade-form-grid {
+    grid-template-columns: 1fr;
   }
 }

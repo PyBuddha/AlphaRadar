@@ -1,3 +1,7 @@
+import AutoRefresh from "./auto-refresh";
+import HotAlert from "./hot-alert";
+import TradingTools from "./trading-tools";
+
 type RadarRow = {
   symbol: string;
   name: string;
@@ -47,21 +51,114 @@ type RadarResponse = {
   marketState: string;
   source: string;
   generatedAt: string;
+  hotList: HotListItem[];
+  entryPanel: EntryPanel | null;
   rows: RadarRow[];
   markets: MarketBoard[];
+};
+
+type HotListItem = {
+  rank: number;
+  symbol: string;
+  name: string;
+  score: number;
+  price: number;
+  tags: string[];
+  ret1m: number;
+  turnover1m: number;
+  red: boolean;
+};
+
+type EntryPanel = {
+  symbol: string;
+  name: string;
+  price: number;
+  shortHigh: number;
+  recentHigh: number;
+  support: number;
+  resistance: number;
+  stopLoss: number;
+  takeProfit: number;
+  checklist: Array<{
+    id: string;
+    label: string;
+    ok: boolean;
+  }>;
+  timeline: Array<{
+    at: string;
+    price: number;
+    score: number;
+    red: boolean;
+  }>;
+};
+
+const fallbackEntryPanel: EntryPanel = {
+  symbol: "000660",
+  name: "SK하이닉스",
+  price: 189500,
+  shortHigh: 190100,
+  recentHigh: 191200,
+  support: 187000,
+  resistance: 193000,
+  stopLoss: 186500,
+  takeProfit: 194800,
+  checklist: [
+    { id: "surge", label: "급등 트리거(SURGE_30S/1M)", ok: true },
+    { id: "tradeable", label: "체결 가능성(TRADEABLE)", ok: true },
+    { id: "breakout", label: "돌파 유지(BREAKOUT + 양수익률)", ok: true },
+    { id: "risk", label: "과확장/되밀림 경고 없음", ok: true },
+    { id: "market", label: "시장 레짐 역풍 아님", ok: true }
+  ],
+  timeline: []
 };
 
 const fallbackResponse: RadarResponse = {
   marketState: "CHOP",
   source: "fallback",
   generatedAt: new Date().toISOString(),
+  hotList: [
+    {
+      rank: 1,
+      symbol: "000660",
+      name: "SK하이닉스",
+      score: 89,
+      price: 189500,
+      tags: ["SURGE_1M", "BREAKOUT", "TRADEABLE"],
+      ret1m: 0.024,
+      turnover1m: 4_800_000_000,
+      red: true
+    },
+    {
+      rank: 2,
+      symbol: "196170",
+      name: "알테오젠",
+      score: 84,
+      price: 312500,
+      tags: ["SURGE_1M", "BREAKOUT", "TRADEABLE"],
+      ret1m: 0.031,
+      turnover1m: 2_250_000_000,
+      red: true
+    },
+    {
+      rank: 3,
+      symbol: "005930",
+      name: "삼성전자",
+      score: 82,
+      price: 71200,
+      tags: ["SURGE_30S", "BREAKOUT", "TRADEABLE"],
+      ret1m: 0.011,
+      turnover1m: 3_400_000_000,
+      red: true
+    }
+  ],
+  entryPanel: fallbackEntryPanel,
   rows: [
     {
       symbol: "005930",
       name: "삼성전자",
       price: 71200,
       score: 82,
-      tags: ["SURGE_VOL", "BREAKOUT"],
+      tags: ["SURGE_30S", "BREAKOUT", "TRADEABLE"],
       metrics: {
         ret1m: 0.011,
         ret3m: 0.038,
@@ -75,7 +172,7 @@ const fallbackResponse: RadarResponse = {
       name: "SK하이닉스",
       price: 189500,
       score: 89,
-      tags: ["SURGE_VOL", "SURGE_PRICE", "BREAKOUT"],
+      tags: ["SURGE_1M", "BREAKOUT", "TRADEABLE"],
       metrics: {
         ret1m: 0.024,
         ret3m: 0.061,
@@ -89,7 +186,7 @@ const fallbackResponse: RadarResponse = {
       name: "알테오젠",
       price: 312500,
       score: 84,
-      tags: ["SURGE_VOL", "SURGE_PRICE", "BREAKOUT"],
+      tags: ["SURGE_1M", "BREAKOUT", "TRADEABLE"],
       metrics: {
         ret1m: 0.031,
         ret3m: 0.074,
@@ -122,7 +219,7 @@ const fallbackResponse: RadarResponse = {
               score: 89,
               ret1m: 0.024,
               turnover1m: 4_800_000_000,
-              tags: ["SURGE_VOL", "BREAKOUT"],
+              tags: ["SURGE_1M", "BREAKOUT", "TRADEABLE"],
               weight: 6
             },
             {
@@ -132,7 +229,7 @@ const fallbackResponse: RadarResponse = {
               score: 82,
               ret1m: 0.011,
               turnover1m: 3_400_000_000,
-              tags: ["SURGE_VOL", "BREAKOUT"],
+              tags: ["SURGE_30S", "BREAKOUT", "TRADEABLE"],
               weight: 6
             }
           ]
@@ -150,7 +247,7 @@ const fallbackResponse: RadarResponse = {
               score: 77,
               ret1m: 0.015,
               turnover1m: 1_950_000_000,
-              tags: ["SURGE_PRICE"],
+              tags: ["SURGE_1M", "TRADEABLE"],
               weight: 6
             },
             {
@@ -160,7 +257,7 @@ const fallbackResponse: RadarResponse = {
               score: 76,
               ret1m: 0.013,
               turnover1m: 1_430_000_000,
-              tags: ["SURGE_PRICE"],
+              tags: ["SURGE_1M", "TRADEABLE"],
               weight: 4
             }
           ]
@@ -189,7 +286,7 @@ const fallbackResponse: RadarResponse = {
               score: 84,
               ret1m: 0.031,
               turnover1m: 2_250_000_000,
-              tags: ["SURGE_VOL", "BREAKOUT"],
+              tags: ["SURGE_1M", "BREAKOUT", "TRADEABLE"],
               weight: 4
             },
             {
@@ -199,7 +296,7 @@ const fallbackResponse: RadarResponse = {
               score: 81,
               ret1m: 0.012,
               turnover1m: 1_540_000_000,
-              tags: ["SURGE_VOL"],
+              tags: ["SURGE_30S", "TRADEABLE"],
               weight: 6
             }
           ]
@@ -217,7 +314,7 @@ const fallbackResponse: RadarResponse = {
               score: 84,
               ret1m: 0.027,
               turnover1m: 1_020_000_000,
-              tags: ["SURGE_PRICE", "BREAKOUT"],
+              tags: ["SURGE_1M", "BREAKOUT", "TRADEABLE"],
               weight: 2
             },
             {
@@ -227,7 +324,7 @@ const fallbackResponse: RadarResponse = {
               score: 82,
               ret1m: 0.022,
               turnover1m: 910_000_000,
-              tags: ["SURGE_PRICE", "BREAKOUT"],
+              tags: ["SURGE_1M", "BREAKOUT", "TRADEABLE"],
               weight: 2
             }
           ]
@@ -302,6 +399,32 @@ function isMarketBoard(value: unknown): value is MarketBoard {
   );
 }
 
+function isEntryPanel(value: unknown): value is EntryPanel {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.symbol === "string" &&
+    typeof value.name === "string" &&
+    typeof value.price === "number" &&
+    typeof value.shortHigh === "number" &&
+    typeof value.recentHigh === "number" &&
+    typeof value.support === "number" &&
+    typeof value.resistance === "number" &&
+    typeof value.stopLoss === "number" &&
+    typeof value.takeProfit === "number" &&
+    Array.isArray(value.checklist) &&
+    value.checklist.every((item) => isRecord(item) && typeof item.id === "string" && typeof item.label === "string" && typeof item.ok === "boolean") &&
+    Array.isArray(value.timeline) &&
+    value.timeline.every(
+      (point) =>
+        isRecord(point) &&
+        typeof point.at === "string" &&
+        typeof point.price === "number" &&
+        typeof point.score === "number" &&
+        typeof point.red === "boolean"
+    )
+  );
+}
+
 function coerceRadarResponse(value: unknown): RadarResponse {
   if (!isRecord(value)) return fallbackResponse;
   if (!Array.isArray(value.rows) || !value.rows.every(isRadarRow)) return fallbackResponse;
@@ -312,10 +435,32 @@ function coerceRadarResponse(value: unknown): RadarResponse {
     };
   }
 
+  const hotList: HotListItem[] = Array.isArray(value.hotList)
+    ? value.hotList
+        .filter((item): item is HotListItem => {
+          if (!isRecord(item)) return false;
+          return (
+            typeof item.rank === "number" &&
+            typeof item.symbol === "string" &&
+            typeof item.name === "string" &&
+            typeof item.score === "number" &&
+            typeof item.price === "number" &&
+            typeof item.ret1m === "number" &&
+            typeof item.turnover1m === "number" &&
+            typeof item.red === "boolean" &&
+            Array.isArray(item.tags) &&
+            item.tags.every((tag) => typeof tag === "string")
+          );
+        })
+        .slice(0, 8)
+    : fallbackResponse.hotList;
+
   return {
     marketState: typeof value.marketState === "string" ? value.marketState : fallbackResponse.marketState,
     source: typeof value.source === "string" ? value.source : "unknown",
     generatedAt: typeof value.generatedAt === "string" ? value.generatedAt : new Date().toISOString(),
+    hotList,
+    entryPanel: isEntryPanel(value.entryPanel) ? value.entryPanel : fallbackResponse.entryPanel,
     rows: value.rows,
     markets: value.markets
   };
@@ -346,6 +491,7 @@ function formatMarketState(value: string) {
 function formatSource(value: string) {
   const map: Record<string, string> = {
     mock: "목업 데이터",
+    paper: "모의투자 데이터",
     live: "실데이터",
     fallback: "폴백 데이터"
   };
@@ -370,13 +516,14 @@ function tileSpanClass(weight: number) {
 
 function formatTag(tag: string) {
   const map: Record<string, string> = {
+    SURGE_30S: "30초 급등",
+    SURGE_1M: "1분 급등",
+    BREAKOUT: "돌파",
+    TRADEABLE: "체결가능",
+    OVEREXT: "과확장",
+    REVERSAL_RISK: "되밀림 위험",
     SURGE_VOL: "거래급증",
     SURGE_PRICE: "가격급등",
-    BREAKOUT: "돌파",
-    PULLBACK: "눌림",
-    ABSORB: "매물흡수",
-    THIN_ASK: "매도얇음",
-    THEME_SYNC: "테마동조",
     RISK_SPIKE: "리스크급증"
   };
   return map[tag] ?? tag;
@@ -397,7 +544,22 @@ async function getRadarData(): Promise<RadarResponse> {
 
 export default async function HomePage() {
   const data = await getRadarData();
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+  const isRealtimeSource = data.source === "live" || data.source === "paper";
   const topRows = data.rows.slice(0, 10);
+  const hotList = data.hotList.length
+    ? data.hotList
+    : topRows.slice(0, 8).map((row, idx) => ({
+        rank: idx + 1,
+        symbol: row.symbol,
+        name: row.name,
+        score: row.score,
+        price: row.price,
+        tags: row.tags,
+        ret1m: row.metrics.ret1m,
+        turnover1m: row.metrics.turnover1m,
+        red: row.score >= 70 && row.tags.some((tag) => tag === "SURGE_1M" || tag === "BREAKOUT")
+      }));
   const topTile = data.markets.flatMap((market) => market.sectors.flatMap((sector) => sector.members))[0];
   const avgScore = topRows.reduce((sum, row) => sum + row.score, 0) / Math.max(topRows.length, 1);
   const totalTurnover = topRows.reduce((sum, row) => sum + row.metrics.turnover1m, 0);
@@ -416,15 +578,19 @@ export default async function HomePage() {
       )
     )
   );
+  const entryPanel = data.entryPanel ?? fallbackEntryPanel;
+  const replaySymbols = hotList.map((item) => ({ symbol: item.symbol, name: item.name }));
 
   return (
     <main className="shell">
+      <AutoRefresh intervalMs={5000} />
+      <HotAlert items={hotList} />
       <section className="hero panel">
         <div>
           <p className="eyebrow">Alpha Radar / 국내 섹터맵 레이더</p>
           <h1>코스피·코스닥을 섹터 박스로 나눠서 보는 레이더 화면</h1>
           <p className="hero-copy">
-            색상은 1분 수익률, 박스 크기는 1분 거래대금(가중치)을 의미합니다. 아래 테이블은 엔진 점수 기준 상위
+            색상은 변동률, 박스 크기는 거래대금(가중치)을 의미합니다. 아래 테이블은 엔진 점수 기준 상위
             종목을 별도로 보여줘서, “시장 분포”와 “매매 후보”를 분리해서 볼 수 있게 구성했습니다.
           </p>
           <div className="pill-row">
@@ -432,6 +598,11 @@ export default async function HomePage() {
             <span className="pill">데이터: {formatSource(data.source)}</span>
             <span className="pill">업데이트: {generatedAt}</span>
           </div>
+          {!isRealtimeSource && (
+            <p className="data-warning">
+              현재 화면은 실데이터가 아닙니다. `KIWOOM_MODE=live` 또는 `paper`와 API 서버 연결 상태를 확인하세요.
+            </p>
+          )}
         </div>
         <div className="hero-cards">
           <article className="metric-card">
@@ -440,7 +611,7 @@ export default async function HomePage() {
             <small>상위 10개 종목 기준</small>
           </article>
           <article className="metric-card">
-            <span>상위 레이더 1분 거래대금</span>
+            <span>상위 레이더 거래대금</span>
             <strong>{formatBillions(totalTurnover)}</strong>
             <small>상위 10개 종목 합산</small>
           </article>
@@ -460,11 +631,11 @@ export default async function HomePage() {
         <div className="legend-grid">
           <div className="legend-item">
             <strong>색상</strong>
-            <span>1분 수익률 (상승=적색 계열, 하락=청색 계열)</span>
+            <span>변동률 (상승=적색 계열, 하락=청색 계열)</span>
           </div>
           <div className="legend-item">
             <strong>박스 크기</strong>
-            <span>1분 거래대금 기반 가중치 (대형주가 더 큼)</span>
+            <span>거래대금 기반 가중치 (대형주가 더 큼)</span>
           </div>
           <div className="legend-item">
             <strong>섹터 카드</strong>
@@ -494,7 +665,7 @@ export default async function HomePage() {
             </div>
             <div className="market-meta">
               <span>섹터 {market.sectors.length}개</span>
-              <span>1분 거래대금 {formatBillions(market.totalTurnover1m)}</span>
+              <span>거래대금 {formatBillions(market.totalTurnover1m)}</span>
             </div>
             <div className="sector-map">
               {market.sectors.map((sector) => (
@@ -548,9 +719,9 @@ export default async function HomePage() {
                   <th>시장/섹터</th>
                   <th>가격</th>
                   <th>점수</th>
-                  <th>1분</th>
-                  <th>3분</th>
-                  <th>1분 거래대금</th>
+                  <th>변동률</th>
+                  <th>모멘텀</th>
+                  <th>거래대금</th>
                   <th>가속도</th>
                   <th>태그</th>
                 </tr>
@@ -584,8 +755,68 @@ export default async function HomePage() {
 
         <section className="panel side-panel">
           <div className="panel-head">
+            <h2>Hot List (Top 8)</h2>
+            <p>실시간 추적 상위 종목. red=true 조건은 레드불 후보입니다.</p>
+          </div>
+          <ul className="feed">
+            {hotList.map((item) => (
+              <li key={item.symbol}>
+                <span>
+                  {item.rank}. {item.name} ({item.symbol}) {item.red ? "RED" : ""}
+                </span>
+                <small>
+                  점수 {item.score} · {formatPct(item.ret1m)} · {item.tags.slice(0, 2).map(formatTag).join(", ")}
+                </small>
+              </li>
+            ))}
+          </ul>
+
+          <div className="panel-head side-subhead">
+            <h2>Entry Panel</h2>
+            <p>진입/손절 의사결정 요약</p>
+          </div>
+          <ul className="feed">
+            <li>
+              <span>
+                {entryPanel.name} ({entryPanel.symbol})
+              </span>
+              <small>현재가 {formatPrice(entryPanel.price)}</small>
+            </li>
+            <li>
+              <span>단기/최근 고점</span>
+              <small>
+                {formatPrice(entryPanel.shortHigh)} / {formatPrice(entryPanel.recentHigh)}
+              </small>
+            </li>
+            <li>
+              <span>지지/저항 후보</span>
+              <small>
+                {formatPrice(entryPanel.support)} / {formatPrice(entryPanel.resistance)}
+              </small>
+            </li>
+            <li>
+              <span>손절/익절 후보</span>
+              <small>
+                {formatPrice(entryPanel.stopLoss)} / {formatPrice(entryPanel.takeProfit)}
+              </small>
+            </li>
+          </ul>
+
+          <div className="panel-head side-subhead">
+            <h2>진입 체크리스트</h2>
+            <p>충족 항목</p>
+          </div>
+          <ul className="todo-list">
+            {entryPanel.checklist.map((item) => (
+              <li key={item.id} className={item.ok ? "check-ok" : "check-no"}>
+                {item.ok ? "PASS" : "FAIL"} · {item.label}
+              </li>
+            ))}
+          </ul>
+
+          <div className="panel-head side-subhead">
             <h2>데이터 상태</h2>
-            <p>현재 응답의 신뢰도와 개선 포인트</p>
+            <p>현재 응답 상태</p>
           </div>
           <ul className="feed">
             <li>
@@ -600,23 +831,17 @@ export default async function HomePage() {
               <span>시장 상태</span>
               <small>{formatMarketState(data.marketState)}</small>
             </li>
-            <li>
-              <span>현재 제한</span>
-              <small>{data.source === "mock" ? "목업 데이터 기반 시뮬레이션" : "실데이터 연결 상태"}</small>
-            </li>
           </ul>
-
-          <div className="panel-head side-subhead">
-            <h2>다음 개선 순서</h2>
-            <p>확실한 개선을 위한 우선순위</p>
-          </div>
-          <ol className="todo-list">
-            <li>실제 코스피/코스닥 종목군 수집기 연결 (시장/업종/거래대금)</li>
-            <li>업종 분류 마스터 정리 (거래소/증권사 기준 중 하나로 고정)</li>
-            <li>장중 주기 갱신 + 변동률 기준 색상 스케일 튜닝</li>
-            <li>클릭 시 종목 상세(체결강도, 호가, 분봉 요약) 패널 추가</li>
-          </ol>
         </section>
+      </section>
+
+      <section className="panel trade-tools-shell">
+        <TradingTools
+          apiBaseUrl={apiBaseUrl}
+          symbols={replaySymbols}
+          defaultSymbol={entryPanel.symbol}
+          seedTimeline={entryPanel.timeline}
+        />
       </section>
     </main>
   );
